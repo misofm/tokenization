@@ -9,6 +9,7 @@ Subject protocols need only the ownership package; there is no reverse dependenc
 ```move
 let (conversion, balance) = tokenization::initialize(
     &mut registry,
+    &issuance,
     shares,
     &currency,
     treasury_cap,
@@ -17,7 +18,8 @@ tokenization::share(conversion);
 ```
 
 Any holder of nonzero shares can create the tokenization. No subject UID, subject
-admin capability, or mutable issuance reference is required. The supplied shares
+admin capability, or mutable issuance reference is required. An immutable
+`&Issuance` validates the backing identity and currency decimals. The supplied shares
 become backing, and the returned balance contains an equal number of coin base
 units. Zero ownership cannot reserve a registry entry.
 
@@ -38,11 +40,12 @@ other independently published adapters.
 
 Initialization preserves the original share-currency checks:
 
+- The backing Share belongs to the supplied Issuance.
 - Type name is exactly `<address>::share::Share`, with no type parameters.
 - The treasury is the canonical treasury recorded on the currency.
 - Initial token supply is zero.
 - The metadata capability has been deleted.
-- Decimals equal the ownership package's public `share::decimals!()` macro.
+- Decimals equal `issuance.decimals()`, including the full Sui `u8` range.
 - Currency is unregulated.
 
 The exact type-name gate excludes legacy OTW currencies. Their migrated registry
@@ -67,8 +70,13 @@ never destroyed and reconstructed across the package boundary.
 
 ```text
 outstanding token base units = native share units held as backing
-backing <= share::max_supply!()
+backing <= issuance.supply()
 ```
+
+The coin supply equals the full issuance supply only when all native shares are
+locked as backing. Partial tokenization mints only the units deposited. No scaling
+or rounding occurs. Supply can reach `u64::MAX` inclusive; decimals are display
+metadata and do not change the base-unit range.
 
 The maximum follows from the native package's conserved supply; the adapter has
 no independent supply constant or native mint authority. Receipt units represent
@@ -82,7 +90,7 @@ Revenue claims, reward debt and distribution are separate integration concerns.
 
 | Function | Result |
 |---|---|
-| `initialize(&mut TokenizationRegistry, Share, &Currency<T>, TreasuryCap<T>)` | `(Tokenization<T>, Balance<T>)` |
+| `initialize(&mut TokenizationRegistry, &Issuance, Share, &Currency<T>, TreasuryCap<T>)` | `(Tokenization<T>, Balance<T>)` |
 | `share(Tokenization<T>)` | Shares the conversion object; only by-value consumer |
 | `derive_tokenization_id(&TokenizationRegistry, issuance_id)` | Predicted `ID`, not existence proof |
 | `issuance_id(&Tokenization<T>)` | Backing issuance ID |
@@ -105,6 +113,7 @@ sui move test
 Tests cover holder-authorized creation without subject authority, deterministic
 registry derivation, duplicate and zero-backed creation rejection, cross-issuance
 deposits, all currency gates, the legacy regulation regression, and repeated
-partial/full conversions preserving exact backing.
+partial/full conversions preserving exact backing, configurable supply/decimals,
+`u64::MAX` mint-and-redeem roundtrips, and mismatched issuance metadata.
 
 Licensed under Apache-2.0.

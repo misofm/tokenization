@@ -21,7 +21,7 @@ fun legacy_unknown_regulation_rejected() {
     let ctx = scenario.ctx();
     let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, mut shares) = share::initialize_for_testing(&mut registry, subject.uid());
+    let (issuance, mut shares) = share::initialize_for_testing(&mut registry, subject.uid(), 100_000_000_000_000, 6);
     // This is the real legacy production coin constructor. In deployment the
     // witness is supplied by init; test construction merely sets up that state.
     let (treasury, mut deny, legacy) = coin::create_regulated_currency_v2(
@@ -38,7 +38,7 @@ fun legacy_unknown_regulation_rejected() {
     assert!(currency.is_metadata_cap_deleted());
 
     let mut tokens = tokenization::registry_for_testing(ctx);
-    let (mut conversion, initial) = tokenization::initialize(&mut tokens, shares.split(1), &currency, treasury);
+    let (mut conversion, initial) = tokenization::initialize(&mut tokens, &issuance, shares.split(1), &currency, treasury);
     destroy(initial);
     let receipt = coin::from_balance(conversion.tokenize(shares.split(100)), ctx);
     assert!(conversion.tokenized_supply() == 101);

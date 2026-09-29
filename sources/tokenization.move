@@ -15,7 +15,7 @@ use sui::coin_registry::Currency;
 use sui::derived_object;
 use sui::event;
 
-use share::share::{Self, Share};
+use share::share::{Issuance, Share};
 
 // === Errors ===
 
@@ -26,6 +26,7 @@ const ERegulatedCurrency: u64 = 3;
 const ETreasuryMismatch: u64 = 4;
 const EInvalidShareType: u64 = 5;
 const EZeroBacking: u64 = 6;
+const EIssuanceMismatch: u64 = 7;
 
 // === Constants ===
 
@@ -69,16 +70,18 @@ fun init(ctx: &mut TxContext) {
 /// The exact currency type name excludes legacy OTW/Unknown regulation paths.
 public fun initialize<T>(
     registry: &mut TokenizationRegistry,
+    issuance: &Issuance,
     shares: Share,
     currency: &Currency<T>,
     mut treasury: TreasuryCap<T>,
 ): (Tokenization<T>, Balance<T>) {
+    assert!(shares.issuance_id() == object::id(issuance), EIssuanceMismatch);
     assert!(shares.value() > 0, EZeroBacking);
     assert!(has_share_type_name<T>(), EInvalidShareType);
     assert!(currency.treasury_cap_id() == option::some(object::id(&treasury)), ETreasuryMismatch);
     assert!(coin::total_supply(&treasury) == 0, ENotZeroSupply);
     assert!(currency.is_metadata_cap_deleted(), EMetadataNotLocked);
-    assert!(currency.decimals() == share::decimals!(), EInvalidDecimals);
+    assert!(currency.decimals() == issuance.decimals(), EInvalidDecimals);
     assert!(!currency.is_regulated(), ERegulatedCurrency);
     let issuance_id = shares.issuance_id();
     let initial_balance = treasury.mint_balance(shares.value());
