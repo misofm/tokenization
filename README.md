@@ -26,6 +26,9 @@ initialization. `TokenizationKey(issuance_id)` derives the conversion object's
 address under that registry. The permanent claim prevents a second binding,
 including after all tokens have been redeemed. Each issuance is independent.
 
+Discover the registry through `TokenizationRegistryCreatedEvent`.
+`TokenizationCreatedEvent<T>` records the tokenization, issuance, and currency IDs.
+
 The first holder chooses the currency, subject to the enforced parameters below.
 Name, symbol, description and artwork may vary; metadata must be locked before
 registration. Canonicality is scoped to this registry, not a prohibition against

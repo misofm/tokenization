@@ -5,15 +5,19 @@
 /// Every outstanding token base unit is backed by one native share unit.
 module tokenization::tokenization;
 
-use share::share::{Self, Share};
+// === Imports ===
+
+use std::type_name::with_defining_ids;
+
 use sui::balance::Balance;
 use sui::coin::{Self, TreasuryCap};
 use sui::coin_registry::Currency;
-use sui::event;
 use sui::derived_object;
-use std::type_name::with_defining_ids;
+use sui::event;
 
-public struct TokenizationKey(ID) has copy, drop, store;
+use share::share::{Self, Share};
+
+// === Errors ===
 
 const ENotZeroSupply: u64 = 0;
 const EMetadataNotLocked: u64 = 1;
@@ -22,18 +26,42 @@ const ERegulatedCurrency: u64 = 3;
 const ETreasuryMismatch: u64 = 4;
 const EInvalidShareType: u64 = 5;
 const EZeroBacking: u64 = 6;
+
+// === Constants ===
+
 const SHARE_TYPE: vector<u8> = b"::share::Share";
 
+// === Structs ===
+
+/// Initialized once per package publication; no production constructor or UID accessor.
+public struct TokenizationRegistry has key { id: UID }
+
+/// Holds the native shares backing every outstanding token unit.
 public struct Tokenization<phantom T> has key {
     id: UID,
     backing: Share,
     treasury: TreasuryCap<T>,
 }
 
-public struct TokenizationCreated<phantom T> has copy, drop {
+/// Derivation key scoped to the issuance ID, independent of currency type.
+public struct TokenizationKey(ID) has copy, drop, store;
+
+// === Events ===
+
+public struct TokenizationRegistryCreatedEvent has copy, drop { registry_id: ID }
+
+public struct TokenizationCreatedEvent<phantom T> has copy, drop {
     tokenization_id: ID,
     issuance_id: ID,
     currency_id: ID,
+}
+
+// === Public Functions ===
+
+fun init(ctx: &mut TxContext) {
+    let registry = TokenizationRegistry { id: object::new(ctx) };
+    event::emit(TokenizationRegistryCreatedEvent { registry_id: object::id(&registry) });
+    transfer::share_object(registry);
 }
 
 /// Anyone holding nonzero shares can establish the canonical tokenization in
@@ -59,7 +87,7 @@ public fun initialize<T>(
         backing: shares,
         treasury,
     };
-    event::emit(TokenizationCreated<T> {
+    event::emit(TokenizationCreatedEvent<T> {
         tokenization_id: object::id(&tokenization),
         issuance_id,
         currency_id: object::id(currency),
@@ -69,15 +97,6 @@ public fun initialize<T>(
 
 /// The only production by-value consumer: initialization must end by sharing.
 public fun share<T>(self: Tokenization<T>) { transfer::share_object(self) }
-
-public fun derive_tokenization_id(registry: &TokenizationRegistry, issuance_id: ID): ID {
-    derived_object::derive_address(object::id(registry), TokenizationKey(issuance_id)).to_id()
-}
-
-public fun issuance_id<T>(self: &Tokenization<T>): ID { self.backing.issuance_id() }
-public fun tokenized_supply<T>(self: &Tokenization<T>): u64 {
-    coin::total_supply(&self.treasury)
-}
 
 public fun tokenize<T>(self: &mut Tokenization<T>, shares: Share): Balance<T> {
     let amount = shares.value();
@@ -89,6 +108,21 @@ public fun detokenize<T>(self: &mut Tokenization<T>, balance: Balance<T>): Share
     let amount = self.treasury.supply_mut().decrease_supply(balance);
     self.backing.split(amount)
 }
+
+// === View Functions ===
+
+public fun derive_tokenization_id(registry: &TokenizationRegistry, issuance_id: ID): ID {
+    derived_object::derive_address(object::id(registry), TokenizationKey(issuance_id)).to_id()
+}
+
+public fun issuance_id<T>(self: &Tokenization<T>): ID { self.backing.issuance_id() }
+public fun tokenized_supply<T>(self: &Tokenization<T>): u64 {
+    coin::total_supply(&self.treasury)
+}
+
+public fun backing_value<T>(self: &Tokenization<T>): u64 { self.backing.value() }
+
+// === Private Functions ===
 
 /// Preserve the original share currency gate. Legacy constructors require an
 /// uppercase OTW name; `share::Share` cannot be one, so Unknown regulation from
@@ -107,20 +141,10 @@ fun has_share_type_name<T>(): bool {
     true
 }
 
+// === Test Functions ===
+
 #[test_only]
 public fun has_share_type_name_for_testing<T>(): bool { has_share_type_name<T>() }
-
-/// Initialized once per package publication; no production constructor or UID accessor.
-public struct TokenizationRegistry has key { id: UID }
-public struct RegistryCreated has copy, drop { registry_id: ID }
-
-fun init(ctx: &mut TxContext) {
-    let registry = TokenizationRegistry { id: object::new(ctx) };
-    event::emit(RegistryCreated { registry_id: object::id(&registry) });
-    transfer::share_object(registry);
-}
-
-public fun backing_value<T>(self: &Tokenization<T>): u64 { self.backing.value() }
 
 #[test_only]
 public fun registry_for_testing(ctx: &mut TxContext): TokenizationRegistry {
