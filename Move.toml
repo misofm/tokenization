@@ -5,5 +5,5 @@ license = "Apache 2.0"
 authors = ["Miso Labs, Inc. (build@miso.fm)"]
 
 [dependencies]
-share = { git = "https://github.com/misofm/share.git", rev = "80d4ccb47e053f8ffa5f33a11df9c433ed33faf5" }
+share = { git = "https://github.com/unconfirmedlabs/share.git", rev = "80d4ccb47e053f8ffa5f33a11df9c433ed33faf5" }
 receipt_fixture = { local = "fixtures/receipt", modes = ["test"] }

@@ -1,7 +1,7 @@
 # Share tokenization
 
 An independently publishable Move package that depends on
-[`misofm/share`](https://github.com/misofm/share), pinned to an exact commit.
+[`unconfirmedlabs/share`](https://github.com/unconfirmedlabs/share), pinned to an exact commit.
 Subject protocols need only the ownership package; there is no reverse dependency.
 
 ## Holder-initiated creation
