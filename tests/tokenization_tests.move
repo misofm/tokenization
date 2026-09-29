@@ -145,7 +145,7 @@ fun wrong_decimals_rejected() {
     currency.delete_metadata_cap(metadata);
     let (conversion, balance) = tokenization::initialize(&mut tokens, shares, &currency, treasury);
     destroy(conversion); destroy(balance); destroy(tokens); destroy(currency); destroy(issuance);
-    destroy(registry); destroy(subject); 
+    destroy(registry); destroy(subject);
 }
 
 #[test, expected_failure(abort_code = 3, location = tokenization)]
@@ -186,7 +186,7 @@ fun wrong_token_name_rejected() {
     let (currency, treasury) = fixtures::other_currency(ctx);
     let (conversion, balance) = tokenization::initialize(&mut tokens, shares, &currency, treasury);
     destroy(conversion); destroy(balance); destroy(tokens); destroy(currency); destroy(issuance);
-    destroy(registry); destroy(subject); 
+    destroy(registry); destroy(subject);
 }
 
 #[test, expected_failure(abort_code = 6, location = tokenization)]
