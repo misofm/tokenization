@@ -23,7 +23,7 @@ manifest_digest = "5745706258F61D6CE210904B3E6AE87A73CE9D31A6F93BE4718C442529332
 deps = { std = "MoveStdlib", sui = "Sui" }
 
 [pinned.testnet.share]
-source = { git = "https://github.com/misofm/share.git", subdir = ".", rev = "45e27979337fda6f069e8df4fc1f1e33be562f19" }
+source = { git = "https://github.com/misofm/share.git", subdir = ".", rev = "80d4ccb47e053f8ffa5f33a11df9c433ed33faf5" }
 use_environment = "testnet"
 manifest_digest = "5745706258F61D6CE210904B3E6AE87A73CE9D31A6F93BE4718C442529332A87"
 deps = { std = "MoveStdlib", sui = "Sui" }
@@ -31,5 +31,5 @@ deps = { std = "MoveStdlib", sui = "Sui" }
 [pinned.testnet.tokenization]
 source = { root = true }
 use_environment = "testnet"
-manifest_digest = "E28E7637BC756AF1C42FC00EBDC4E5CC80BD8138BA7EDBBA1F443BA17713608B"
+manifest_digest = "60312D60BBA4A303798F2992285FBDF54184EE3535FC0890D93397D2F4F81B66"
 deps = { receipt_fixture = "receipt_fixture", share = "share", std = "MoveStdlib", sui = "Sui" }
