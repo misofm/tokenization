@@ -1,0 +1,6 @@
+[package]
+name = "receipt_fixture"
+edition = "2024"
+
+[addresses]
+receipt_fixture = "0x0"

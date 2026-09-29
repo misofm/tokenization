@@ -1,0 +1,9 @@
+[package]
+name = "tokenization"
+edition = "2024"
+license = "Apache 2.0"
+authors = ["Miso Labs, Inc. (build@miso.fm)"]
+
+[dependencies]
+share = { git = "https://github.com/misofm/share.git", rev = "45e27979337fda6f069e8df4fc1f1e33be562f19" }
+receipt_fixture = { local = "fixtures/receipt", modes = ["test"] }
