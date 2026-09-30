@@ -17,7 +17,7 @@ let (conversion, balance) = tokenization::initialize(
 tokenization::share(conversion);
 ```
 
-Any holder of nonzero shares can create the tokenization. No subject UID, subject
+Any holder of nonzero shares can create the tokenization. No parent UID, parent
 admin capability, or mutable issuance reference is required. An immutable
 `&Issuance` validates the backing identity and currency decimals. The supplied shares
 become backing, and the returned balance contains an equal number of coin base
@@ -100,7 +100,7 @@ Revenue claims, reward debt and distribution are separate integration concerns.
 | `detokenize(&mut Tokenization<T>, Balance<T>)` | Matching native `Share` |
 
 The conversion object is independently shared. Only creation touches the
-registry; conversion does not require the issuance or subject. Initialization
+registry; conversion does not require the issuance or its parent. Initialization
 must complete by sharing the object in the same transaction.
 
 ## Validation
@@ -110,7 +110,7 @@ sui move build
 sui move test
 ```
 
-Tests cover holder-authorized creation without subject authority, deterministic
+Tests cover holder-authorized creation without parent authority, deterministic
 registry derivation, duplicate and zero-backed creation rejection, cross-issuance
 deposits, all currency gates, the legacy regulation regression, and repeated
 partial/full conversions preserving exact backing, configurable supply/decimals,

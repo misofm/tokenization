@@ -19,9 +19,8 @@ fun legacy_unknown_regulation_rejected() {
     deny_list::create_for_testing(scenario.ctx());
     scenario.next_tx(@0x0);
     let ctx = scenario.ctx();
-    let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, mut shares) = share::initialize_for_testing(&mut registry, subject.uid(), 100_000_000_000_000, 6);
+    let (issuance, mut shares) = share::new(subject.uid(), 100_000_000_000_000, 6);
     // This is the real legacy production coin constructor. In deployment the
     // witness is supplied by init; test construction merely sets up that state.
     let (treasury, mut deny, legacy) = coin::create_regulated_currency_v2(
@@ -54,7 +53,7 @@ fun legacy_unknown_regulation_rejected() {
     assert!(currency.is_regulated());
     tokenization::share(conversion);
     test_scenario::return_shared(deny_list);
-    destroy(tokens); destroy(registry); destroy(subject); destroy(issuance); destroy(shares);
+    destroy(tokens); destroy(subject); destroy(issuance); destroy(shares);
     destroy(currency); destroy(coin_registry); destroy(legacy); destroy(deny); destroy(receipt);
     scenario.end();
 }

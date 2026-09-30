@@ -3,7 +3,7 @@
 #[test_only]
 module tokenization::tokenization_tests;
 
-use share::share::{Self, Issuance, IssuanceRegistry, Share};
+use share::share::{Self, Issuance, Share};
 use tokenization::tokenization::{Self, Tokenization, TokenizationRegistry};
 use tokenization::fixtures::{Self, Share as WrongModuleShare};
 use receipt_fixture::share::Share as Receipt;
@@ -17,14 +17,13 @@ const DECIMALS: u8 = 6;
 public struct Wallet has key, store { id: UID, shares: Share }
 
 #[test]
-fun holder_initializes_without_subject_authority_and_another_holder_redeems() {
+fun holder_initializes_without_parent_authority_and_another_holder_redeems() {
     let mut scenario = test_scenario::begin(@0x0);
     tokenization::init_for_testing(scenario.ctx());
-    share::init_for_testing(scenario.ctx());
     scenario.next_tx(@0x0);
-    let mut registry = scenario.take_shared<IssuanceRegistry>();
     let mut subject = fixtures::subject(scenario.ctx());
-    let mut shares = share::initialize(&mut registry, subject.uid(), SUPPLY, DECIMALS);
+    let (new_issuance, mut shares) = share::new(subject.uid(), SUPPLY, DECIMALS);
+    new_issuance.share();
     let issuance_id = shares.issuance_id();
     let gift = shares.split(1_500);
     let (mut currency, treasury, metadata) = fixtures::currency(DECIMALS, scenario.ctx());
@@ -33,7 +32,6 @@ fun holder_initializes_without_subject_authority_and_another_holder_redeems() {
     transfer::public_transfer(treasury, @0xB);
     transfer::public_transfer(Wallet { id: object::new(scenario.ctx()), shares: gift }, @0xB);
     subject.keep(@0x0);
-    test_scenario::return_shared(registry);
     scenario.next_tx(@0xB);
     let issuance = scenario.take_shared<Issuance>();
     let mut tokens = scenario.take_shared<TokenizationRegistry>();
@@ -73,9 +71,8 @@ fun holder_initializes_without_subject_authority_and_another_holder_redeems() {
 #[test]
 fun repeated_partial_and_full_roundtrips_preserve_backing() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, mut shares) = share::initialize_for_testing(&mut registry, subject.uid(), 100_000_000_000_000, 6);
+    let (issuance, mut shares) = share::new(subject.uid(), 100_000_000_000_000, 6);
     let mut tokens = tokenization::registry_for_testing(ctx);
     let (mut currency, treasury, metadata) = fixtures::currency(DECIMALS, ctx);
     currency.delete_metadata_cap(metadata);
@@ -100,7 +97,7 @@ fun repeated_partial_and_full_roundtrips_preserve_backing() {
     let zero = conversion.tokenize(share::zero(&issuance));
     conversion.detokenize(zero).destroy_zero();
     destroy(all); destroy(conversion); destroy(currency); destroy(tokens);
-    destroy(issuance); destroy(registry); destroy(subject);
+    destroy(issuance); destroy(subject);
 }
 
 #[test]
@@ -115,106 +112,98 @@ fun exact_type_name_gate() {
 #[test, expected_failure(abort_code = 0, location = tokenization)]
 fun nonzero_currency_rejected() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, shares) = share::initialize_for_testing(&mut registry, subject.uid(), 100_000_000_000_000, 6);
+    let (issuance, shares) = share::new(subject.uid(), 100_000_000_000_000, 6);
     let mut tokens = tokenization::registry_for_testing(ctx);
     let (mut currency, mut treasury, metadata) = fixtures::currency(DECIMALS, ctx);
     currency.delete_metadata_cap(metadata);
     let preexisting = treasury.mint_balance(1);
     let (conversion, balance) = tokenization::initialize(&mut tokens, &issuance, shares, &currency, treasury);
     destroy(conversion); destroy(balance); destroy(tokens); destroy(currency); destroy(issuance);
-    destroy(registry); destroy(subject); destroy(preexisting);
+    destroy(subject); destroy(preexisting);
 }
 
 #[test, expected_failure(abort_code = 1, location = tokenization)]
 fun mutable_metadata_rejected() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, shares) = share::initialize_for_testing(&mut registry, subject.uid(), 100_000_000_000_000, 6);
+    let (issuance, shares) = share::new(subject.uid(), 100_000_000_000_000, 6);
     let mut tokens = tokenization::registry_for_testing(ctx);
     let (currency, treasury, metadata) = fixtures::currency(DECIMALS, ctx);
     let (conversion, balance) = tokenization::initialize(&mut tokens, &issuance, shares, &currency, treasury);
     destroy(conversion); destroy(balance); destroy(tokens); destroy(currency); destroy(issuance);
-    destroy(registry); destroy(subject); destroy(metadata);
+    destroy(subject); destroy(metadata);
 }
 
 #[test, expected_failure(abort_code = 2, location = tokenization)]
 fun wrong_decimals_rejected() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, shares) = share::initialize_for_testing(&mut registry, subject.uid(), 100_000_000_000_000, 6);
+    let (issuance, shares) = share::new(subject.uid(), 100_000_000_000_000, 6);
     let mut tokens = tokenization::registry_for_testing(ctx);
     let (mut currency, treasury, metadata) = fixtures::currency(9, ctx);
     currency.delete_metadata_cap(metadata);
     let (conversion, balance) = tokenization::initialize(&mut tokens, &issuance, shares, &currency, treasury);
     destroy(conversion); destroy(balance); destroy(tokens); destroy(currency); destroy(issuance);
-    destroy(registry); destroy(subject);
+    destroy(subject);
 }
 
 #[test, expected_failure(abort_code = 3, location = tokenization)]
 fun regulated_currency_rejected() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, shares) = share::initialize_for_testing(&mut registry, subject.uid(), 100_000_000_000_000, 6);
+    let (issuance, shares) = share::new(subject.uid(), 100_000_000_000_000, 6);
     let mut tokens = tokenization::registry_for_testing(ctx);
     let (currency, treasury, deny) = fixtures::regulated(ctx);
     let (conversion, balance) = tokenization::initialize(&mut tokens, &issuance, shares, &currency, treasury);
     destroy(conversion); destroy(balance); destroy(tokens); destroy(currency); destroy(issuance);
-    destroy(registry); destroy(subject); destroy(deny);
+    destroy(subject); destroy(deny);
 }
 
 #[test, expected_failure(abort_code = 4, location = tokenization)]
 fun noncanonical_treasury_rejected() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, shares) = share::initialize_for_testing(&mut registry, subject.uid(), 100_000_000_000_000, 6);
+    let (issuance, shares) = share::new(subject.uid(), 100_000_000_000_000, 6);
     let mut tokens = tokenization::registry_for_testing(ctx);
     let (mut currency, treasury, metadata) = fixtures::currency(DECIMALS, ctx);
     currency.delete_metadata_cap(metadata);
     let fake = coin::create_treasury_cap_for_testing<Receipt>(ctx);
     let (conversion, balance) = tokenization::initialize(&mut tokens, &issuance, shares, &currency, fake);
     destroy(conversion); destroy(balance); destroy(tokens); destroy(currency); destroy(issuance);
-    destroy(registry); destroy(subject); destroy(treasury);
+    destroy(subject); destroy(treasury);
 }
 
 #[test, expected_failure(abort_code = 5, location = tokenization)]
 fun wrong_token_name_rejected() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, shares) = share::initialize_for_testing(&mut registry, subject.uid(), 100_000_000_000_000, 6);
+    let (issuance, shares) = share::new(subject.uid(), 100_000_000_000_000, 6);
     let mut tokens = tokenization::registry_for_testing(ctx);
     let (currency, treasury) = fixtures::other_currency(ctx);
     let (conversion, balance) = tokenization::initialize(&mut tokens, &issuance, shares, &currency, treasury);
     destroy(conversion); destroy(balance); destroy(tokens); destroy(currency); destroy(issuance);
-    destroy(registry); destroy(subject);
+    destroy(subject);
 }
 
 #[test, expected_failure(abort_code = 6, location = tokenization)]
 fun zero_holder_cannot_claim_tokenization() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, shares) = share::initialize_for_testing(&mut registry, subject.uid(), 100_000_000_000_000, 6);
+    let (issuance, shares) = share::new(subject.uid(), 100_000_000_000_000, 6);
     let mut tokens = tokenization::registry_for_testing(ctx);
     let (mut currency, treasury, metadata) = fixtures::currency(DECIMALS, ctx);
     currency.delete_metadata_cap(metadata);
     let (conversion, balance) = tokenization::initialize(&mut tokens, &issuance, share::zero(&issuance), &currency, treasury);
     destroy(conversion); destroy(balance); destroy(tokens); destroy(currency); destroy(issuance);
-    destroy(registry); destroy(subject); destroy(shares);
+    destroy(subject); destroy(shares);
 }
 
 #[test, expected_failure(abort_code = sui::derived_object::EObjectAlreadyExists)]
 fun duplicate_tokenization_rejected_even_after_emptying_backing() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, mut shares) = share::initialize_for_testing(&mut registry, subject.uid(), 100_000_000_000_000, 6);
+    let (issuance, mut shares) = share::new(subject.uid(), 100_000_000_000_000, 6);
     let mut tokens = tokenization::registry_for_testing(ctx);
     let (mut currency, treasury, metadata) = fixtures::currency(DECIMALS, ctx);
     currency.delete_metadata_cap(metadata);
@@ -225,25 +214,24 @@ fun duplicate_tokenization_rejected_even_after_emptying_backing() {
     other_currency.delete_metadata_cap(metadata);
     let (second, balance) = tokenization::initialize(&mut tokens, &issuance, shares, &other_currency, other_treasury);
     destroy(first); destroy(second); destroy(balance); destroy(currency); destroy(other_currency);
-    destroy(tokens); destroy(issuance); destroy(registry); destroy(subject);
+    destroy(tokens); destroy(issuance); destroy(subject);
 }
 
 #[test, expected_failure(abort_code = 1, location = share)]
 fun foreign_issuance_cannot_tokenize() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, shares) = share::initialize_for_testing(&mut registry, subject.uid(), 100_000_000_000_000, 6);
+    let (issuance, shares) = share::new(subject.uid(), 100_000_000_000_000, 6);
     let mut tokens = tokenization::registry_for_testing(ctx);
     let (mut currency, treasury, metadata) = fixtures::currency(DECIMALS, ctx);
     currency.delete_metadata_cap(metadata);
     let (mut conversion, balance) = tokenization::initialize(&mut tokens, &issuance, shares, &currency, treasury);
     let mut foreign = fixtures::subject(ctx);
-    let (foreign_issuance, foreign_shares) = share::initialize_for_testing(&mut registry, foreign.uid(), 100_000_000_000_000, 6);
+    let (foreign_issuance, foreign_shares) = share::new(foreign.uid(), 100_000_000_000_000, 6);
     let invalid = conversion.tokenize(foreign_shares);
     destroy(invalid); destroy(balance); destroy(conversion); destroy(currency); destroy(tokens);
     destroy(foreign); destroy(foreign_issuance);
-    destroy(issuance); destroy(registry); destroy(subject);
+    destroy(issuance); destroy(subject);
 }
 
 #[test]
@@ -256,11 +244,8 @@ fun full_u64_supply_and_decimal_range_roundtrip() {
 }
 
 fun configurable_roundtrip(supply: u64, decimals: u8, ctx: &mut TxContext) {
-    let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, mut shares) = share::initialize_for_testing(
-        &mut registry, subject.uid(), supply, decimals,
-    );
+    let (issuance, mut shares) = share::new(subject.uid(), supply, decimals);
     let mut tokens = tokenization::registry_for_testing(ctx);
     let (mut currency, treasury, metadata) = fixtures::currency(decimals, ctx);
     currency.delete_metadata_cap(metadata);
@@ -288,19 +273,16 @@ fun configurable_roundtrip(supply: u64, decimals: u8, ctx: &mut TxContext) {
     assert!(all.value() == supply);
     let all = conversion.detokenize(all);
     destroy(all); destroy(conversion); destroy(currency); destroy(tokens);
-    destroy(issuance); destroy(registry); destroy(subject);
+    destroy(issuance); destroy(subject);
 }
 
 #[test, expected_failure(abort_code = 7, location = tokenization)]
 fun foreign_issuance_cannot_select_currency_parameters() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = share::registry_for_testing(ctx);
     let mut subject = fixtures::subject(ctx);
-    let (issuance, shares) = share::initialize_for_testing(&mut registry, subject.uid(), 500, 6);
+    let (issuance, shares) = share::new(subject.uid(), 500, 6);
     let mut foreign = fixtures::subject(ctx);
-    let (foreign_issuance, foreign_shares) = share::initialize_for_testing(
-        &mut registry, foreign.uid(), 1_000, 9,
-    );
+    let (foreign_issuance, foreign_shares) = share::new(foreign.uid(), 1_000, 9);
     let mut tokens = tokenization::registry_for_testing(ctx);
     // These decimals match the foreign issuance, not the backing shares.
     let (mut currency, treasury, metadata) = fixtures::currency(9, ctx);
@@ -310,5 +292,5 @@ fun foreign_issuance_cannot_select_currency_parameters() {
     );
     destroy(conversion); destroy(balance); destroy(tokens); destroy(currency);
     destroy(issuance); destroy(foreign_issuance); destroy(foreign_shares);
-    destroy(registry); destroy(subject); destroy(foreign);
+    destroy(subject); destroy(foreign);
 }
